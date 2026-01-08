@@ -2,6 +2,7 @@ package main
 
 import (
 	"encoding/json"
+	"fmt"
 	"log"
 	"net/http"
 	"os"
@@ -9,14 +10,11 @@ import (
 	"time"
 )
 
-const (
-	imgSize = "?maxWidth=300"
-)
-
 var (
-	jellyfin = os.Getenv("JELLYFIN_URL")
-	token    = os.Getenv("JELLYFIN_TOKEN")
-	userID   = os.Getenv("JELLYFIN_USERID")
+	jellyfin  string
+	token     string
+	userID    string
+	imageSize string
 )
 
 type JellyfinItem struct {
@@ -56,6 +54,13 @@ func fetchLatest(filter string) ([]Card, error) {
 	}
 	mu.Unlock()
 
+	userID := os.Getenv("JELLYFIN_USERID")
+	fmt.Println("userID:", userID)
+
+	if userID == "" {
+		return nil, fmt.Errorf("JELLYFIN_USERID environment variable is not set")
+	}
+
 	url := jellyfin + "/Users/" + userID + "/Items/Latest?Limit=20"
 	if filter != "" {
 		url += "&IncludeItemTypes=" + filter
@@ -92,7 +97,7 @@ func fetchLatest(filter string) ([]Card, error) {
 		out = append(out, Card{
 			Title:         i.Name,
 			Subtitle:      i.Type,
-			Image:         jellyfin + "/Items/" + imageID + "/Images/Primary" + imgSize,
+			Image:         jellyfin + "/Items/" + imageID + "/Images/Primary" + imageSize,
 			Href:          jellyfin + "/web/index.html#!/details?id=" + i.Id,
 			Rating:        i.CommunityRating,
 			Year:          year,
@@ -204,7 +209,7 @@ func dashboardHandler(w http.ResponseWriter, r *http.Request) {
 
         .card {
             flex: 0 0 auto;
-            width: 180px;
+            width: 159px;
             cursor: pointer;
             transition: transform 0.3s;
             text-decoration: none;
@@ -214,7 +219,7 @@ func dashboardHandler(w http.ResponseWriter, r *http.Request) {
 
         .card-image {
             width: 100%;
-            height: 270px;
+            height: 220px;
             border-radius: 8px;
             overflow: hidden;
             position: relative;
@@ -397,6 +402,15 @@ func dashboardHandler(w http.ResponseWriter, r *http.Request) {
 }
 
 func main() {
+	jellyfin = os.Getenv("JELLYFIN_URL")
+	token = os.Getenv("JELLYFIN_TOKEN")
+	userID = os.Getenv("JELLYFIN_USERID")
+	imageSize = os.Getenv("POSTER_IMAGE_SIZE")
+
+	if jellyfin == "" || token == "" || userID == "" {
+		log.Fatal("Missing required environment variables")
+	}
+
 	// JSON API endpoints (existing)
 	http.HandleFunc("/latest", apiHandler(""))
 	http.HandleFunc("/latest/movies", apiHandler("Movie"))
