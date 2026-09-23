@@ -3,6 +3,7 @@ package main
 import (
 	"encoding/json"
 	"fmt"
+	"io"
 	"log"
 	"net/http"
 	"os"
@@ -67,13 +68,18 @@ func fetchLatest(filter string) ([]Card, error) {
 	}
 
 	req, _ := http.NewRequest("GET", url, nil)
-	req.Header.Set("X-Emby-Token", token)
+	req.Header.Set("Authorization", "MediaBrowser Token="+token)
 
 	resp, err := http.DefaultClient.Do(req)
 	if err != nil {
 		return nil, err
 	}
 	defer resp.Body.Close()
+
+	if resp.StatusCode != http.StatusOK {
+		body, _ := io.ReadAll(resp.Body)
+		return nil, fmt.Errorf("jellyfin API error: %d - %s", resp.StatusCode, string(body))
+	}
 
 	var items []JellyfinItem
 	if err := json.NewDecoder(resp.Body).Decode(&items); err != nil {
